@@ -1,13 +1,19 @@
-# Node
-node_modules/
-dist/
-
-# Python
-__pycache__/
-*.pyc
-venv/
+# Entornos virtuales
 .venv/
-.env
+venv/
+ENV/
+env/
 
-# Editor
+# Variables de entorno y llaves secretas
+.env
+*.env
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de sistema / IDEs
 .vscode/
+.idea/
+.DS_Store

@@ -7,7 +7,7 @@ export default function App() {
   // ---------------------------------------------------------------------------
   // ESTADOS DE NAVEGACIÓN Y DASHBOARD (INDEX)
   // ---------------------------------------------------------------------------
-  const [pantallaActual, setPantallaActual] = useState("index"); // "index" o "builder"
+  const [pantallaActual, setPantallaActual] = useState("index");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState(null);
@@ -19,7 +19,7 @@ export default function App() {
   // ---------------------------------------------------------------------------
   const editorRef = useRef(null);
   const [selectedComponent, setSelectedComponent] = useState(null);
-  const [bloquesAInsertar, setBloquesAInsertar] = useState([]);
+  const [widgetsAInsertar, setWidgetsAInsertar] = useState([]);
 
   // ===========================================================================
   // 1. MÉTODOS DEL DASHBOARD / INDEX
@@ -54,12 +54,12 @@ export default function App() {
       alert("Primero debes generar un layout con el prompt para ejecutar el Copywriter.");
       return;
     }
-    setCopywriterStatus("✍️ Copywriter IA: Se han optimizado los encabezados y textos para conversión automotriz.");
+    setCopywriterStatus("AI Copywriter: Headlines and copy have been optimized for automotive conversions.");
   };
 
   const handleRunQA = () => {
     if (!previewData) {
-      alert("Primero debes generar un layout con el prompt para ejecutar la Auditoría QA.");
+      alert("First, you must generate a layout using the prompt to run the QA audit.");
       return;
     }
     const tieneInventario = previewData.layout.blocks.includes("inventory-card-block");
@@ -72,8 +72,98 @@ export default function App() {
 
   const handleConfirmarEIrAlBuilder = () => {
     if (!previewData) return;
-    setBloquesAInsertar(previewData.layout.blocks);
+    setWidgetsAInsertar(previewData.widgets || []);
     setPantallaActual("builder");
+  };
+
+  // ===========================================================================
+  // HELPER DE GENERACIÓN DE HTML CON DATOS DINÁMICOS O POR DEFECTO
+  // ===========================================================================
+  const renderWidgetHTML = (type, data = {}) => {
+    const title = data.title || "Component Title";
+    const content = data.content || "Enter or edit the descriptive text for this section.";
+    const imageUrl = data.image_url || "https://placehold.co/600x400?text=Auto";
+
+    switch (type) {
+      case "breadcrumbs-block":
+        return `
+          <nav style="padding: 12px 20px; background-color: #f1f5f9; font-family: sans-serif; font-size: 14px; color: #64748b; margin-bottom: 16px; border-radius: 6px;">
+            <div style="max-width: 1200px; margin: 0 auto;">
+              <a href="#" style="color: #2563eb; text-decoration: none;">Inicio</a> / 
+              <a href="#" style="color: #2563eb; text-decoration: none;"> Catálogo</a> / 
+              <span style="font-weight: 600; color: #0f172a;"> ${title}</span>
+            </div>
+          </nav>
+        `;
+
+      case "hero-image-block":
+        return `
+          <section style="background-image: linear-gradient(rgba(15,23,42,0.6), rgba(15,23,42,0.6)), url('/images/heroimage.jpg'); background-size: cover; background-position: center; padding: 80px 20px; text-align: center; border-radius: 12px; margin-bottom: 24px; color: #ffffff; font-family: sans-serif;">
+            <div style="max-width: 800px; margin: 0 auto;">
+              <h1 style="font-size: 36px; font-weight: 800; margin-bottom: 16px;">${title}</h1>
+              <p style="font-size: 18px; line-height: 1.6; opacity: 0.9; margin-bottom: 24px;">${content}</p>
+              <button style="padding: 12px 28px; background-color: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 15px; cursor: pointer;">
+                Solicitar Cotización
+              </button>
+            </div>
+          </section>
+        `;
+
+      case "text-block":
+        return `
+          <div style="padding: 24px 20px; margin: 0 auto 16px auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box; font-family: sans-serif;">
+            ${title ? `<h2 style="font-size: 22px; color: #0f172a; margin-top: 0; margin-bottom: 12px; text-align: center;">${title}</h2>` : ''}
+            <p style="font-size: 16px; color: #334155; margin: 0; text-align: center; line-height: 1.6;">
+              ${content}
+            </p>
+          </div>
+        `;
+
+      case "left-image-block":
+        return `
+          <div style="display: flex; gap: 24px; align-items: center; padding: 24px 20px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; margin: 0 auto 16px auto; width: 100%; box-sizing: border-box; flex-wrap: wrap; font-family: sans-serif;">
+            <div style="flex: 1 1 300px; min-width: 0;">
+              <img src="/images/image_default2.jpg" alt="Car Title" style="width: 100%; height: auto; border-radius: 8px; display: block; object-fit: cover;" />
+            </div>
+            <div style="flex: 1 1 300px; min-width: 0;">
+              <h3 style="margin: 0 0 12px 0; font-size: 22px; color: #0f172a;">${title}</h3>
+              <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6;">${content}</p>
+            </div>
+          </div>
+        `;
+
+      case "right-image-block":
+        return `
+          <div style="display: flex; gap: 24px; align-items: center; padding: 24px 20px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; margin: 0 auto 16px auto; width: 100%; box-sizing: border-box; flex-wrap: wrap; font-family: sans-serif;">
+            <div style="flex: 1 1 300px; min-width: 0;">
+              <h3 style="margin: 0 0 12px 0; font-size: 22px; color: #0f172a;">${title}</h3>
+              <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6;">${content}</p>
+            </div>
+            <div style="flex: 1 1 300px; min-width: 0;">
+              <img src="/images/image_default1.jpg" alt="Car Title" style="width: 100%; height: auto; border-radius: 8px; display: block; object-fit: cover;" />
+            </div>
+          </div>
+        `;
+
+      case "contact-form-block":
+        return `
+          <section style="padding: 40px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; font-family: sans-serif;">
+            <div style="max-width: 500px; margin: 0 auto;">
+              <h2 style="font-size: 24px; color: #0f172a; text-align: center; margin-top: 0; margin-bottom: 8px;">${title}</h2>
+              <p style="text-align: center; color: #64748b; margin-bottom: 20px; font-size: 14px;">${content}</p>
+              <form onsubmit="return false;" style="display: flex; flex-direction: column; gap: 12px;">
+                <input type="text" placeholder="Nombre completo" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;" />
+                <input type="email" placeholder="Correo electrónico" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;" />
+                <textarea placeholder="Mensaje o consulta" rows="3" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: none;"></textarea>
+                <button type="button" style="padding: 12px; background-color: #16a34a; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">Enviar Mensaje</button>
+              </form>
+            </div>
+          </section>
+        `;
+
+      default:
+        return `<div style="padding: 20px; text-align: center; background: #f1f5f9; font-family: sans-serif;">${title}: ${content}</div>`;
+    }
   };
 
   // ===========================================================================
@@ -136,12 +226,10 @@ export default function App() {
         wrapper.set("open", true);
       }
 
-      if (bloquesAInsertar.length > 0) {
-        bloquesAInsertar.forEach((blockId) => {
-          const block = editor.BlockManager.get(blockId);
-          if (block) {
-            editor.addComponents(block.getContent());
-          }
+      if (widgetsAInsertar.length > 0) {
+        widgetsAInsertar.forEach((widget) => {
+          const html = renderWidgetHTML(widget.widget_type, widget);
+          editor.addComponents(html);
         });
       }
     });
@@ -153,55 +241,40 @@ export default function App() {
       }
     });
 
-    // Text Block
+    // -------------------------------------------------------------------------
+    // REGISTRO DE BLOQUES PARA LA BARRA LATERAL (DRAG AND DROP / CLIC)
+    // -------------------------------------------------------------------------
+    editor.BlockManager.add("breadcrumbs-block", {
+      label: "Breadcrumbs",
+      content: renderWidgetHTML("breadcrumbs-block"),
+    });
+
+    editor.BlockManager.add("hero-image-block", {
+      label: "Hero Image Banner",
+      content: renderWidgetHTML("hero-image-block"),
+    });
+
     editor.BlockManager.add("text-block", {
       label: "Content Text",
-      content: `
-        <div style="padding: 24px 10px; margin: 0 auto 16px auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; width: 100%; max-width: 100%; box-sizing: border-box;">
-          <p style="font-size: 18px; color: #0f172a; margin: 0; text-align: center; font-family: sans-serif;">
-            Double click here to edit text directly...
-          </p>
-        </div>
-      `,
+      content: renderWidgetHTML("text-block"),
     });
 
-    // Left Image / Content
     editor.BlockManager.add("left-image-block", {
       label: "Left Image / Content",
-      content: `
-        <div style="display: flex; gap: 20px; align-items: center; padding: 20px 10px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; margin: 0 auto 16px auto; width: 100%; max-width: 100%; box-sizing: border-box; flex-wrap: wrap; overflow: hidden;">
-          <div style="flex: 1 1 250px; min-width: 0; max-width: 100%;">
-            <img src="/images/image_default1.jpg" alt="Sample" style="width: 100%; max-width: 100%; height: auto; border-radius: 6px; display: block; object-fit: cover;" />
-          </div>
-          <div style="flex: 1 1 250px; min-width: 0; max-width: 100%; font-family: sans-serif; overflow-wrap: anywhere; word-break: break-word;">
-            <h3 style="margin: 0 0 10px 0; font-size: 20px; color: #0f172a;">Section Title</h3>
-            <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.5;">
-              Double click on this text to edit or replace the image using properties.
-            </p>
-          </div>
-        </div>
-      `,
+      content: renderWidgetHTML("left-image-block"),
     });
 
-    // Right Image / Content
     editor.BlockManager.add("right-image-block", {
       label: "Right Image / Content",
-      content: `
-        <div style="display: flex; gap: 20px; align-items: center; padding: 20px 10px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; margin: 0 auto 16px auto; width: 100%; max-width: 100%; box-sizing: border-box; flex-wrap: wrap; overflow: hidden;">
-          <div style="flex: 1 1 250px; min-width: 0; max-width: 100%; font-family: sans-serif; overflow-wrap: anywhere; word-break: break-word;">
-            <h3 style="margin: 0 0 10px 0; font-size: 20px; color: #0f172a;">Section Title</h3>
-            <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.5;">
-              Double click on this text to edit or replace the image using properties.
-            </p>
-          </div>
-          <div style="flex: 1 1 250px; min-width: 0; max-width: 100%;">
-            <img src="/images/image_default2.jpg" alt="Sample" style="width: 100%; max-width: 100%; height: auto; border-radius: 6px; display: block; object-fit: cover;" />
-          </div>
-        </div>
-      `,
+      content: renderWidgetHTML("right-image-block"),
     });
 
-    // Inventory
+    editor.BlockManager.add("contact-form-block", {
+      label: "Contact Form",
+      content: renderWidgetHTML("contact-form-block"),
+    });
+
+    // Block de Inventario
     editor.BlockManager.add("inventory-card-block", {
       label: "Inventory Card",
       content: `
@@ -380,7 +453,7 @@ export default function App() {
     });
 
     editorRef.current = editor;
-  }, [pantallaActual, bloquesAInsertar]);
+  }, [pantallaActual, widgetsAInsertar]);
 
   // ===========================================================================
   // 3. MÉTODOS DE EDICIÓN Y NAVEGACIÓN
@@ -451,7 +524,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* BOTONES FUERA DEL CUADRO (En el recuadro que marcaste) */}
+          {/* BOTONES FUERA DEL CUADRO */}
           <div style={{ marginTop: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <button
               onClick={handleRunCopywriter}
