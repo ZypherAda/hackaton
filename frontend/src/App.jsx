@@ -13,6 +13,8 @@ export default function App() {
   const [previewData, setPreviewData] = useState(null);
   const [copywriterStatus, setCopywriterStatus] = useState(null);
   const [qaStatus, setQaStatus] = useState(null);
+  const [qaUrl, setQaUrl] = useState("");
+  const [qaLoading, setQaLoading] = useState(false);
 
   // ---------------------------------------------------------------------------
   // ESTADOS Y REFS DEL WEBSITE BUILDER (GRAPESJS)
@@ -57,16 +59,29 @@ export default function App() {
     setCopywriterStatus("AI Copywriter: Headlines and copy have been optimized for automotive conversions.");
   };
 
-  const handleRunQA = () => {
-    if (!previewData) {
-      alert("First, you must generate a layout using the prompt to run the QA audit.");
+  const handleRunQA = async () => {
+    if (!qaUrl.trim()) {
+      alert("Ingresa la URL de la página a auditar antes de ejecutar el QA.");
       return;
     }
-    const tieneInventario = previewData.layout.blocks.includes("inventory-card-block");
-    if (previewData.preview.page_type === "FINANCE" && tieneInventario) {
-      setQaStatus("⚠️ QA Alert: Inconsistencia detectada. Páginas financieras no deben llevar inventario.");
-    } else {
-      setQaStatus("✅ QA Passed: Estructura validada sin errores de UX ni violaciones de reglas de negocio.");
+    setQaLoading(true);
+    setQaStatus(null);
+    try {
+      const response = await fetch("http://localhost:8000/api/qa-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: qaUrl.trim() }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Error en QA");
+      }
+      setQaStatus(await response.json());
+    } catch (err) {
+      alert("Error al ejecutar QA: " + err.message);
+      console.error(err);
+    } finally {
+      setQaLoading(false);
     }
   };
 
@@ -502,7 +517,17 @@ export default function App() {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Ej: Crear una página para el Finance Center con opciones de crédito..."
               rows={4}
-              style={{ width: "100%", backgroundColor: "#0f172a", border: "1px solid #475569", borderRadius: "8px", color: "#fff", padding: "12px", boxSizing: "border-box", resize: "none", marginBottom: "16px", outline: "none" }}
+              style={{ width: "100%", backgroundColor: "#0f172a", border: "1px solid #475569", borderRadius: "8px", color: "#fff", padding: "12px", boxSizing: "border-box", resize: "none", marginBottom: "12px", outline: "none" }}
+            />
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#64748b", marginBottom: "6px", letterSpacing: "0.5px" }}>
+              URL DE REFERENCIA <span style={{ color: "#475569", fontWeight: "400" }}>(requerida para el QA)</span>
+            </label>
+            <input
+              type="url"
+              value={qaUrl}
+              onChange={(e) => setQaUrl(e.target.value)}
+              placeholder="https://www.ejemplo-concesionaria.com/pagina"
+              style={{ width: "100%", backgroundColor: "#0f172a", border: "1px solid #475569", borderRadius: "8px", color: "#fff", padding: "10px 12px", boxSizing: "border-box", marginBottom: "16px", outline: "none", fontSize: "13px" }}
             />
             <button
               onClick={handleExecuteAgents}
@@ -550,13 +575,14 @@ export default function App() {
 
             <button
               onClick={handleRunQA}
+              disabled={qaLoading}
               style={{
                 padding: "14px",
                 backgroundColor: "#1e293b",
-                color: "#c084fc",
-                border: "1px solid #9333ea",
+                color: qaLoading ? "#64748b" : "#c084fc",
+                border: `1px solid ${qaLoading ? "#334155" : "#9333ea"}`,
                 borderRadius: "10px",
-                cursor: "pointer",
+                cursor: qaLoading ? "not-allowed" : "pointer",
                 fontSize: "13px",
                 fontWeight: "600",
                 display: "flex",
@@ -567,7 +593,7 @@ export default function App() {
                 boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
               }}
             >
-              <span style={{ fontSize: "16px" }}>🔍</span> Realizar QA
+              <span style={{ fontSize: "16px" }}>🔍</span> {qaLoading ? "Auditando..." : "Realizar QA"}
             </button>
           </div>
 
@@ -579,8 +605,100 @@ export default function App() {
               </div>
             )}
             {qaStatus && (
-              <div style={{ padding: "12px 16px", backgroundColor: "#31104220", border: "1px solid #a855f7", borderRadius: "8px", color: "#c084fc", fontSize: "13px", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
-                {qaStatus}
+              <div style={{ padding: "16px", backgroundColor: "#0f172a", border: "1px solid #7c3aed", borderRadius: "8px", fontSize: "13px", marginBottom: "12px" }}>
+
+                {/* AI plain-language summary */}
+                {qaStatus.ai_summary && (
+                  <div style={{ backgroundColor: "#1e1b4b", border: "1px solid #4f46e5", borderRadius: "6px", padding: "12px", marginBottom: "14px" }}>
+                    <div style={{ color: "#818cf8", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>✨ AI Summary</div>
+                    <div style={{ color: "#e0e7ff", fontSize: "12px", lineHeight: "1.7" }}>{qaStatus.ai_summary}</div>
+                  </div>
+                )}
+
+                {/* Header */}
+                <div style={{ fontWeight: "700", color: "#c084fc", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                  <span style={{ whiteSpace: "nowrap" }}>🔍 QA Report</span>
+                  <span style={{ fontSize: "10px", color: "#475569", fontWeight: "400", wordBreak: "break-all", textAlign: "right" }}>{qaStatus.url}</span>
+                </div>
+
+                {/* H1 */}
+                <div style={{ backgroundColor: "#1e293b", borderRadius: "6px", padding: "10px 12px", marginBottom: "8px" }}>
+                  <div style={{ color: "#64748b", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                    <span>H1 Tags — {qaStatus.h1.length} found</span>
+                    {qaStatus.h1.length > 1 && <span style={{ color: "#fbbf24" }}>⚠ Multiple H1s detected — SEO best practice recommends exactly 1</span>}
+                    {qaStatus.h1.length === 0 && <span style={{ color: "#f87171" }}>✗ No H1 tag found</span>}
+                  </div>
+                  {qaStatus.h1.length > 0
+                    ? qaStatus.h1.map((h, i) => <div key={i} style={{ color: "#f1f5f9", fontSize: "12px", marginBottom: "2px" }}>#{i + 1} &ldquo;{h}&rdquo;</div>)
+                    : <div style={{ color: "#475569", fontSize: "12px" }}>—</div>
+                  }
+                </div>
+
+                {/* Editorial Content */}
+                <div style={{ backgroundColor: "#1e293b", borderRadius: "6px", padding: "10px 12px", marginBottom: "8px" }}>
+                  <div style={{ color: "#64748b", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>Editorial Content</div>
+                  <div style={{ color: "#f1f5f9" }}>{qaStatus.text_lines} lines of text extracted</div>
+                </div>
+
+                {/* Links */}
+                <div style={{ backgroundColor: "#1e293b", borderRadius: "6px", padding: "10px 12px", marginBottom: "8px" }}>
+                  <div style={{ color: "#64748b", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>Links — {qaStatus.links.total} total</div>
+                  <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    <span style={{ color: "#86efac" }}>✓ {qaStatus.links.ok} OK</span>
+                    {qaStatus.links.broken > 0 && <span style={{ color: "#f87171" }}>✗ {qaStatus.links.broken} broken</span>}
+                    <span style={{ color: "#94a3b8" }}>◈ {qaStatus.links.relative} relative</span>
+                    <span style={{ color: "#94a3b8" }}>○ {qaStatus.links.absolute} absolute</span>
+                  </div>
+                  {qaStatus.links.broken > 0 && (
+                    <div style={{ borderTop: "1px solid #0f172a", paddingTop: "6px", marginTop: "6px" }}>
+                      <div style={{ color: "#f87171", fontSize: "10px", fontWeight: "600", marginBottom: "4px" }}>Broken links:</div>
+                      {qaStatus.links.broken_items.map((l, i) => (
+                        <div key={i} style={{ color: "#94a3b8", fontSize: "11px", marginBottom: "3px" }}>
+                          • <span style={{ color: "#f87171" }}>[HTTP {l.status}]</span> <span style={{ color: "#cbd5e1" }}>{l.text || "—"}</span> <span style={{ color: "#475569", fontSize: "10px" }}>({l.type})</span>
+                          <div style={{ color: "#334155", fontSize: "10px", marginLeft: "10px", wordBreak: "break-all" }}>{l.url}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Buttons */}
+                <div style={{ backgroundColor: "#1e293b", borderRadius: "6px", padding: "10px 12px", marginBottom: "8px" }}>
+                  <div style={{ color: "#64748b", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>Buttons & CTAs — {qaStatus.buttons.length} found</div>
+                  {qaStatus.buttons.length === 0
+                    ? <div style={{ color: "#475569", fontSize: "11px" }}>No buttons detected</div>
+                    : qaStatus.buttons.map((b, i) => (
+                      <div key={i} style={{ color: "#94a3b8", fontSize: "11px", marginBottom: "2px" }}>
+                        • &ldquo;{b.text}&rdquo; <span style={{ color: b.hasLink ? "#86efac" : "#64748b", fontSize: "10px" }}>{b.hasLink ? "linked" : "no link"}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                {/* Images */}
+                <div style={{ backgroundColor: "#1e293b", borderRadius: "6px", padding: "10px 12px" }}>
+                  <div style={{ color: "#64748b", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>Images — {qaStatus.images.total} found</div>
+                  {qaStatus.images.items.map((img, i) => {
+                    const filename = (img.src || "").split("/").pop().split("?")[0].substring(0, 38) || "(unknown)";
+                    const ratingColor = { good: "#86efac", acceptable: "#fbbf24", large: "#f87171", unknown: "#64748b" }[img.rating] || "#64748b";
+                    const ratingIcon = { good: "✓", acceptable: "⚠", large: "✗", unknown: "?" }[img.rating] || "?";
+                    return (
+                      <div key={i} style={{ marginBottom: "8px", paddingBottom: "8px", borderBottom: i < qaStatus.images.items.length - 1 ? "1px solid #0f172a" : "none" }}>
+                        <div style={{ color: "#cbd5e1", fontSize: "11px", display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                          <span style={{ color: ratingColor, fontWeight: "700" }}>{ratingIcon}</span>
+                          <span>{filename}</span>
+                          {img.kb !== null
+                            ? <span style={{ color: ratingColor, fontWeight: "600" }}>{img.kb} KB</span>
+                            : <span style={{ color: "#475569" }}>size N/A</span>
+                          }
+                        </div>
+                        {img.alt && <div style={{ color: "#475569", fontSize: "10px", marginLeft: "14px", marginTop: "1px" }}>alt: &ldquo;{img.alt}&rdquo;</div>}
+                        <div style={{ color: "#475569", fontSize: "10px", marginLeft: "14px", marginTop: "1px", fontStyle: "italic" }}>{img.reason}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
               </div>
             )}
           </div>

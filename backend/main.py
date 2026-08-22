@@ -1,6 +1,10 @@
 import json
 import os, traceback
+import requests
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -245,15 +249,148 @@ orchestrator = AgentOrchestrator(interpreter, validator)
 class PromptDTO(BaseModel):
     prompt: str
 
+class QARequestDTO(BaseModel):
+    url: str
+
 # ============================================================================
 # 5. ENDPOINT PRINCIPAL
 # ============================================================================
+
 @app.post("/api/generate-page")
 async def generate_page(dto: PromptDTO):
     if not dto.prompt.strip():
         raise HTTPException(status_code=400, detail="The prompt cannot be empty.")
     
     return await orchestrator.run(dto.prompt)
+
+# ============================================================================
+# 6. ENDPOINT QA — delega al qa-service (Node.js, puerto 4000)
+# ============================================================================
+@app.post("/api/qa-check")
+async def qa_check(dto: QARequestDTO):
+    if not dto.url.strip():
+        raise HTTPException(status_code=400, detail="La URL no puede estar vacía.")
+    try:
+        response = requests.post(
+            "http://localhost:4000/api/full-analysis/run",
+            json={"url": dto.url.strip()},
+            timeout=30
+        )
+        response.raise_for_status()
+        raw = response.json()
+
+        desktop = raw.get("desktop", {})
+        anchors  = desktop.get("anchors", [])
+        buttons  = desktop.get("buttons", [])
+        images   = desktop.get("images", [])
+        h1_texts = desktop.get("h1Texts", [])
+        cp_lines = desktop.get("cp", {}).get("lines", [])
+
+        # Fetch image sizes (non-blocking — skipped if qa-service can't resolve)
+        img_srcs = [img.get("src") for img in images[:10] if (img.get("src") or "").startswith("http")]
+        img_sizes_map: Dict[str, Any] = {}
+        if img_srcs:
+            try:
+                size_resp = requests.post(
+                    "http://localhost:4000/api/link-reading/image-sizes",
+                    json={"urls": img_srcs},
+                    timeout=20
+                )
+                if size_resp.ok:
+                    for s in size_resp.json().get("sizes", []):
+                        img_sizes_map[s.get("url")] = s.get("bytes")
+            except Exception:
+                pass
+
+        def _img_rating(b: Any) -> Dict[str, Any]:
+            if b is None:
+                return {"kb": None, "rating": "unknown", "reason": "Size could not be retrieved"}
+            kb = round(b / 1024, 1)
+            if kb <= 100:
+                return {"kb": kb, "rating": "good", "reason": "Within recommended web budget (\u2264 100 KB)"}
+            elif kb <= 300:
+                return {"kb": kb, "rating": "acceptable", "reason": "Acceptable \u2014 consider optimizing for mobile users (101\u2013300 KB)"}
+            else:
+                return {"kb": kb, "rating": "large", "reason": f"Exceeds web performance guidelines \u2014 target < 200 KB per image (currently {kb} KB)"}
+
+        link_items = [
+            {
+                "url": a.get("url"),
+                "text": a.get("text"),
+                "type": "relative" if a.get("isRelative") else "absolute",
+                "status": a.get("status"),
+                "ok": a.get("statusOk", False),
+            }
+            for a in anchors
+        ]
+        broken_items = [l for l in link_items if not l["ok"]]
+        relative_count = sum(1 for l in link_items if l["type"] == "relative")
+
+        result = {
+            "url": dto.url.strip(),
+            "h1": h1_texts,
+            "text_lines": len(cp_lines),
+            "links": {
+                "total": len(link_items),
+                "ok": len(link_items) - len(broken_items),
+                "broken": len(broken_items),
+                "relative": relative_count,
+                "absolute": len(link_items) - relative_count,
+                "broken_items": [{"url": l["url"], "text": l["text"], "status": l["status"], "type": l["type"]} for l in broken_items[:10]],
+            },
+            "buttons": [{"text": b.get("text"), "hasLink": b.get("hasLink")} for b in buttons],
+            "images": {
+                "total": len(images),
+                "items": [
+                    {"src": img.get("src"), "alt": img.get("alt", ""), **_img_rating(img_sizes_map.get(img.get("src")))}
+                    for img in images[:10]
+                ],
+            },
+        }
+
+        # AI-generated plain-language summary via Gemini
+        img_items = result["images"]["items"]
+        kb_values = [i["kb"] for i in img_items if i["kb"] is not None]
+        large_imgs = [i for i in img_items if i["rating"] == "large"]
+        broken_count = result["links"]["broken"]
+        h1_count = len(result["h1"])
+
+        summary_input = (
+            f"URL audited: {result['url']}\n"
+            f"H1 tags found: {h1_count} — {result['h1']}\n"
+            f"Editorial text: {result['text_lines']} lines\n"
+            f"Links: {result['links']['total']} total, {result['links']['ok']} working, "
+            f"{broken_count} broken, {result['links']['relative']} relative, {result['links']['absolute']} absolute\n"
+            f"Buttons/CTAs: {len(result['buttons'])} — {[b['text'] for b in result['buttons']]}\n"
+            f"Images: {result['images']['total']} found, "
+            f"sizes {f'{min(kb_values)}–{max(kb_values)} KB' if kb_values else 'unknown'}, "
+            f"{len(large_imgs)} oversized"
+        )
+
+        try:
+            gemini_resp = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=(
+                    f"You are a friendly web quality analyst writing for a non-technical audience.\n"
+                    f"Based on this QA audit data, write a concise summary of 3-4 sentences in English.\n"
+                    f"Mention what is working well, any issues found, and one practical recommendation.\n"
+                    f"Keep the tone clear, positive where appropriate, and avoid technical jargon.\n\n"
+                    f"{summary_input}"
+                ),
+                config=types.GenerateContentConfig(temperature=0.4)
+            )
+            result["ai_summary"] = gemini_resp.text.strip()
+        except Exception:
+            result["ai_summary"] = None
+
+        return result
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="QA Service (puerto 4000) no está corriendo.")
+    except requests.exceptions.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Error del QA Service: {e}")
+    except Exception as e:
+        print(f"Error en qa-check: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
