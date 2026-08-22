@@ -39,12 +39,12 @@ export default function App() {
         body: JSON.stringify({ prompt }),
       });
 
-      if (!response.ok) throw new Error("Error en la respuesta del servidor");
+      if (!response.ok) throw new Error("Server response error");
 
       const data = await response.json();
       setPreviewData(data);
     } catch (err) {
-      alert("Error al conectar con el backend de Python.");
+      alert("Error connecting to the Python backend.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ export default function App() {
 
   const handleRunCopywriter = () => {
     if (!previewData) {
-      alert("Primero debes generar un layout con el prompt para ejecutar el Copywriter.");
+      alert("First, you must generate a layout using the prompt to run the Copywriter.");
       return;
     }
     setCopywriterStatus("AI Copywriter: Headlines and copy have been optimized for automotive conversions.");
@@ -104,8 +104,8 @@ export default function App() {
         return `
           <nav style="padding: 12px 20px; background-color: #f1f5f9; font-family: sans-serif; font-size: 14px; color: #64748b; margin-bottom: 16px; border-radius: 6px;">
             <div style="max-width: 1200px; margin: 0 auto;">
-              <a href="#" style="color: #2563eb; text-decoration: none;">Inicio</a> / 
-              <a href="#" style="color: #2563eb; text-decoration: none;"> Catálogo</a> / 
+              <a href="#" style="color: #2563eb; text-decoration: none;">Home</a> &gt;
+              <a href="#" style="color: #2563eb; text-decoration: none;"> New Inventory</a> &gt; 
               <span style="font-weight: 600; color: #0f172a;"> ${title}</span>
             </div>
           </nav>
@@ -118,7 +118,7 @@ export default function App() {
               <h1 style="font-size: 36px; font-weight: 800; margin-bottom: 16px;">${title}</h1>
               <p style="font-size: 18px; line-height: 1.6; opacity: 0.9; margin-bottom: 24px;">${content}</p>
               <button style="padding: 12px 28px; background-color: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 15px; cursor: pointer;">
-                Solicitar Cotización
+                Schedule Your Visit
               </button>
             </div>
           </section>
@@ -162,20 +162,165 @@ export default function App() {
 
       case "contact-form-block":
         return `
-          <section style="padding: 40px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; font-family: sans-serif;">
-            <div style="max-width: 500px; margin: 0 auto;">
+          <section style="padding: 40px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin: 0 auto 24px auto; font-family: sans-serif; max-width: 600px; box-sizing: border-box;">
+            <div style="width: 100%;">
               <h2 style="font-size: 24px; color: #0f172a; text-align: center; margin-top: 0; margin-bottom: 8px;">${title}</h2>
               <p style="text-align: center; color: #64748b; margin-bottom: 20px; font-size: 14px;">${content}</p>
               <form onsubmit="return false;" style="display: flex; flex-direction: column; gap: 12px;">
-                <input type="text" placeholder="Nombre completo" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;" />
-                <input type="email" placeholder="Correo electrónico" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;" />
-                <textarea placeholder="Mensaje o consulta" rows="3" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: none;"></textarea>
-                <button type="button" style="padding: 12px; background-color: #16a34a; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">Enviar Mensaje</button>
+                <input type="text" placeholder="Full Name" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box;" />
+                <input type="email" placeholder="Email" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box;" />
+                <textarea placeholder="Message or inquiry" rows="3" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: none; width: 100%; box-sizing: border-box;"></textarea>
+                <button type="button" style="padding: 12px; background-color: #16a34a; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%;">Send Message</button>
               </form>
             </div>
           </section>
         `;
 
+      case "inventory-card-block": {
+      const inventoryTitle = data.title || "Inventory Showcase";
+        return `
+          <style>
+            .inventory-section {
+              width: 100%;
+              max-width: 1200px;
+              margin: 0 auto 20px auto;
+              padding: 20px 10px;
+              box-sizing: border-box;
+              font-family: sans-serif;
+            }
+            .inventory-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 20px;
+            }
+            .inventory-card {
+              background-color: #ffffff;
+              border-radius: 12px;
+              border: 1px solid #e2e8f0;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+            }
+            .card-image-container {
+              width: 100%;
+              height: 180px;
+              overflow: hidden;
+              background-color: #f1f5f9;
+            }
+            .card-image {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+            .card-content {
+              padding: 16px;
+              text-align: center;
+            }
+            .card-title {
+              margin: 0;
+              font-size: 18px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+            .card-subtitle {
+              margin: 6px 0 0 0;
+              font-size: 13px;
+              color: #64748b;
+            }
+            .card-actions {
+              padding: 0 16px 16px 16px;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 10px;
+            }
+            .btn {
+              padding: 8px 10px;
+              font-size: 12px;
+              font-weight: 600;
+              border-radius: 6px;
+              border: none;
+              cursor: pointer;
+              text-align: center;
+            }
+            .btn-secondary {
+              background-color: #f1f5f9;
+              color: #334155;
+            }
+            .btn-primary {
+              background-color: #2563eb;
+              color: #ffffff;
+            }
+            @media (max-width: 768px) {
+              .inventory-grid {
+                grid-template-columns: 1fr;
+              }
+            }
+          </style>
+
+          <section class="inventory-section">
+            <h2 style="text-align: center; margin-bottom: 24px; color: #0f172a;">${inventoryTitle}</h2>
+            <div class="inventory-grid">
+
+              <div class="inventory-card">
+                <div class="card-image-container">
+                  <img 
+                    src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800" 
+                    alt="Porsche 911 GT3" 
+                    class="card-image"
+                  />
+                </div>
+                <div class="card-content">
+                  <h3 class="card-title">Porsche 911 GT3</h3>
+                  <p class="card-subtitle">Modelo 2024 • Deportivo</p>
+                </div>
+                <div class="card-actions">
+                  <button class="btn btn-secondary">View Details</button>
+                  <button class="btn btn-primary">Shop Now</button>
+                </div>
+              </div>
+
+              <div class="inventory-card">
+                <div class="card-image-container">
+                  <img 
+                    src="https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&q=80&w=800" 
+                    alt="BMW M4 Coupe" 
+                    class="card-image"
+                  />
+                </div>
+                <div class="card-content">
+                  <h3 class="card-title">BMW M4 Coupe</h3>
+                  <p class="card-subtitle">Modelo 2023 • Performance</p>
+                </div>
+                <div class="card-actions">
+                  <button class="btn btn-secondary">View Details</button>
+                  <button class="btn btn-primary">Shop Now</button>
+                </div>
+              </div>
+
+              <div class="inventory-card">
+                <div class="card-image-container">
+                  <img 
+                    src="https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&q=80&w=800" 
+                    alt="Audi RS e-tron GT" 
+                    class="card-image"
+                  />
+                </div>
+                <div class="card-content">
+                  <h3 class="card-title">Audi RS e-tron GT</h3>
+                  <p class="card-subtitle">Modelo 2024 • Eléctrico</p>
+                </div>
+                <div class="card-actions">
+                  <button class="btn btn-secondary">View Details</button>
+                  <button class="btn btn-primary">Shop Now</button>
+                </div>
+              </div>
+
+            </div>
+          </section>
+        `;
+      }
       default:
         return `<div style="padding: 20px; text-align: center; background: #f1f5f9; font-family: sans-serif;">${title}: ${content}</div>`;
     }
@@ -504,18 +649,18 @@ export default function App() {
           <header style={{ textAlign: "center", marginBottom: "32px" }}>
             <span style={{ fontSize: "12px", fontWeight: "700", color: "#a855f7", letterSpacing: "2px" }}>AI WEB ARCHITECTURE</span>
             <h1 style={{ fontSize: "36px", fontWeight: "800", margin: "8px 0" }}>The Promptastics 🚀</h1>
-            <p style={{ color: "#94a3b8" }}>Generador de Maquetas para Concesionarias de Autos</p>
+            <p style={{ color: "#94a3b8" }}>Mockup Generator for Car Dealerships</p>
           </header>
 
           {/* Formulario Principal de Solicitud */}
           <div style={{ backgroundColor: "#1e293b", padding: "24px", borderRadius: "12px", border: "1px solid #334155", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3)" }}>
             <label style={{ display: "block", fontSize: "14px", fontWeight: "600", color: "#cbd5e1", marginBottom: "8px" }}>
-              ¿Qué tipo de página deseas construir?
+              What type of page do you want to build?
             </label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ej: Crear una página para el Finance Center con opciones de crédito..."
+              placeholder="Ej: Create a page for the Finance Center with credit options..."
               rows={4}
               style={{ width: "100%", backgroundColor: "#0f172a", border: "1px solid #475569", borderRadius: "8px", color: "#fff", padding: "12px", boxSizing: "border-box", resize: "none", marginBottom: "12px", outline: "none" }}
             />
@@ -545,7 +690,7 @@ export default function App() {
                 boxShadow: "0 4px 12px rgba(37,99,235,0.3)"
               }}
             >
-              {loading ? "Ejecutando Agente..." : "⚡ Interpretar y Generar Layout"}
+              {loading ? "Running Agent..." : "⚡ Interpret and Generate Layout"}
             </button>
           </div>
 
@@ -570,7 +715,7 @@ export default function App() {
                 boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
               }}
             >
-              <span style={{ fontSize: "16px" }}>✍️</span> Generacion Copywriter
+              <span style={{ fontSize: "16px" }}>✍️</span> Copywriter Generation
             </button>
 
             <button
@@ -593,7 +738,7 @@ export default function App() {
                 boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
               }}
             >
-              <span style={{ fontSize: "16px" }}>🔍</span> {qaLoading ? "Auditando..." : "Realizar QA"}
+              <span style={{ fontSize: "16px" }}>🔍</span> Perform QA
             </button>
           </div>
 
@@ -719,7 +864,7 @@ export default function App() {
 
               <div style={{ marginBottom: "24px" }}>
                 <h4 style={{ fontSize: "11px", textTransform: "uppercase", color: "#cbd5e1", margin: "0 0 10px 0", letterSpacing: "1px" }}>
-                  Estructura de Widgets Recomendada:
+                  Recommended Widget Structure:
                 </h4>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                   {previewData.layout.blocks.map((block, idx) => (
@@ -746,7 +891,7 @@ export default function App() {
                   boxShadow: "0 4px 12px rgba(22,163,74,0.3)"
                 }}
               >
-                🎨 Confirmar y Abrir en Website Builder (GrapesJS) →
+                🎨 Confirm and Open in Website Builder (GrapesJS) →
               </button>
             </div>
           )}

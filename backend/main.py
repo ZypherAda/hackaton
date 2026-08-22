@@ -40,11 +40,11 @@ AVAILABLE_BLOCKS = [
 ]
 
 PAGE_TYPES_RULES = {
-    "FINANCE": {"forbidden": ["inventory-card-block"], "label": "Centro de Financiamiento"},
-    "ABOUT": {"forbidden": ["inventory-card-block"], "label": "Acerca de Nosotros"},
-    "CONTACT": {"forbidden": ["inventory-card-block"], "label": "Contacto y Ubicación"},
-    "CATALOG": {"forbidden": [], "label": "Catálogo / Inventario General"},
-    "MODEL_SPECIFIC": {"forbidden": [], "label": "Lanzamiento / Modelo Específico"}
+    "FINANCE": {"forbidden": ["inventory-card-block"], "label": "Financing Center"},
+    "ABOUT": {"forbidden": ["inventory-card-block"], "label": "About Us"},
+    "CONTACT": {"forbidden": ["inventory-card-block"], "label": "Contact & Location"},
+    "CATALOG": {"forbidden": [], "label": "General Catalog / Inventory"},
+    "MODEL_SPECIFIC": {"forbidden": [], "label": "New Launch / Specific Model"}
 }
 
 # ============================================================================
@@ -159,42 +159,49 @@ class AgentOrchestrator:
         self.interpreter = interpreter
         self.validator = validator
 
-    def _map_blocks_with_content(self, blocks: List[str], copy_data: PageCopyResponse) -> List[Dict[str, Any]]:
+    def _map_blocks_with_content(
+        self, blocks: List[str], copy_data: PageCopyResponse, page_title: str
+    ) -> List[Dict[str, Any]]:
         sections = copy_data.sections
         widgets = []
 
+        # 1. Breadcrumbs dinámicos
         if "breadcrumbs-block" in blocks:
+            crumb_title = getattr(copy_data, "page_title", page_title)
+            
             widgets.append({
                 "widget_type": "breadcrumbs-block",
-                "title": "Navegación",
+                "title": f"{crumb_title}",
                 "content": "",
                 "image_url": None
             })
 
+        # 2. Hero Image: Asigna el título real generado
         if "hero-image-block" in blocks:
+            # Usa el page_title del copywriter o el título validado por la IA
+            hero_title = getattr(copy_data, "page_title", page_title)
+            hero_summary = getattr(copy_data, "summary", "")
+
             widgets.append({
                 "widget_type": "hero-image-block",
-                "title": "Hero Banner",
-                "content": "",
+                "title": hero_title,      
+                "content": hero_summary, 
                 "image_url": "https://placehold.co/1200x500?text=Hero+Auto"
             })
 
-        # 2. Asignar un widget específico para CADA sección redactada por el Copywriter
+        # 3. Mapeo dinámico de secciones explicativas
         image_toggle = "right-image-block"
 
         for idx, sec in enumerate(sections):
             header = sec.header.strip() if hasattr(sec, "header") else ""
-            
             body_text = getattr(sec, "body", getattr(sec, "content", getattr(sec, "text", "")))
             body = body_text.strip() if isinstance(body_text, str) else str(body_text)
 
-            # Regla de asignación por tipo de sección:
             if idx == 0:
-                widget_type = "text-block"  # Introducción
+                widget_type = "text-block"
             elif idx == len(sections) - 1:
-                widget_type = "text-block"  # Conclusión
+                widget_type = "text-block"
             else:
-                # Alternar entre right-image-block y left-image-block para las características
                 widget_type = image_toggle
                 image_toggle = "left-image-block" if image_toggle == "right-image-block" else "right-image-block"
 
@@ -205,11 +212,20 @@ class AgentOrchestrator:
                 "image_url": "https://placehold.co/600x400?text=Auto" if "image" in widget_type else None
             })
 
-        # 3. Bloque de contacto al final si correspondía
+        # 4. Inventory Card Block (si la IA lo solicitó)
+        if "inventory-card-block" in blocks:
+            widgets.append({
+                "widget_type": "inventory-card-block",
+                "title": "Inventario Disponible",
+                "content": "Explora los modelos y versiones disponibles en stock.",
+                "image_url": None
+            })
+
+        # 5. Formulario de contacto (si la IA lo solicitó)
         if "contact-form-block" in blocks:
             widgets.append({
                 "widget_type": "contact-form-block",
-                "title": "Ponte en Contacto",
+                "title": "Contact Us",
                 "content": "Request your test drive or personalized quote.",
                 "image_url": None
             })
@@ -222,7 +238,10 @@ class AgentOrchestrator:
 
         copy_data: PageCopyResponse = await generate_page_copy(user_prompt)
 
-        assembled_widgets = self._map_blocks_with_content(validated["blocks"], copy_data)
+        # Pasamos validated["page_title"] a la función para mapear el título en el hero
+        assembled_widgets = self._map_blocks_with_content(
+            validated["blocks"], copy_data, validated["page_title"]
+        )
 
         real_block_list = [w["widget_type"] for w in assembled_widgets]
 
